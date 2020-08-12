@@ -5,10 +5,13 @@
 #include <boost/format.hpp>
 #include <string>
 #include <memory>
+#include <vector>
 #include "level.h"
 
 
 namespace josh::util::logger {
+
+struct IDestination;
 
 /**Boost::Logger based logging.
  @example
@@ -37,31 +40,18 @@ public:
     void operator= (Logger const&) = delete;
     void operator= (Logger&&) = delete;
 
-    /**Get log file path.*/
+    /**Get name of this logger.*/
     [[nodiscard]]
-    std::string const& getLogPath() const noexcept;
-    /**Get if write to file.*/
-    [[nodiscard]]
-    bool isToFile() const noexcept;
-    /**Get if write to console.*/
-    [[nodiscard]]
-    bool isToConsole() const noexcept;
-    /**Get if log to file is buffered.*/
-    [[nodiscard]]
-    bool isFileBuffered() const noexcept;
-    /**Get if log to console is buffered.*/
-    [[nodiscard]]
-    bool isConsoleBuffered() const noexcept;
-    /**Get log severity level.*/
-    [[nodiscard]]
-    Level getSeverity() const noexcept;
-    /**Set log severity level.*/
-    void setSeverity(Level level);
+    std::string const& getName() const;
     /**Get if logging is enabled.*/
     [[nodiscard]]
     bool isEnabled() const noexcept;
-    /**Enable or disable logging.*/
-    void enableLog(bool enable);
+    /**Enable or disable this logging.
+     @warn NOT thread-safe. */
+    void enable(bool enable = true);
+    /**Disable this logging.
+     @warn NOT thread-safe. */
+    void disable();
 
     void write(Level level, std::string const& msg) const;
     void write(Level level, std::wstring const& msg) const;
@@ -129,10 +119,13 @@ public:
 #undef DeclareMethod
 
 private:
-    Logger(
-        std::string name, std::string path, bool toFile, bool toConsole,
-        bool fileBuffered, bool consoleBuffered, Level severity);
+    friend class LoggerManager;
 
+    Logger(std::string name, std::vector<std::shared_ptr<IDestination>>&& destinations);
+        //std::string path, bool toFile, bool toConsole,
+        //bool fileBuffered, bool consoleBuffered, Level severity);
+
+//private:
     struct LoggerImpl;
     std::unique_ptr<LoggerImpl> impl;
 }; // ! class Logger

@@ -10,6 +10,7 @@
 namespace josh::util::logger {
 
 class Logger;
+struct IDestination;
 
 /**Manager for Logger instances.
  @example
@@ -42,8 +43,10 @@ public:
     [[nodiscard]]
     static LoggerManager& getInstance() noexcept;
 
-    /**Create new builder instance.*/
-    static Builder&& newBuilder();
+    /**Create new builder instance.
+     @warning client muse call Builder::create() or Builder::cancel() in order to prevent resource
+        leak. */
+    static Builder& newBuilder();
 
     /**Get Logger instance.
      @return a shared pointer to Logger instance. nullptr if not found. */
@@ -59,16 +62,10 @@ public:
     [[nodiscard]]
     bool isEnabled() const;
 
-    /**Globally set log severity level.
-     If level of logger instance is greater (i.e. less emergency) than specified value, the value
-     will be changed to @p level. */
-    void setGlobalSeverity(Level level);
-
-
 private:
     LoggerManager(); 
 
-    void addLogger(Builder& builder);
+    std::shared_ptr<Logger> addLogger(Builder& builder);
 
     struct Impl;
     std::unique_ptr<Impl> impl;
@@ -79,7 +76,6 @@ private:
 class LoggerManager::Builder {
 public:
     friend class LoggerManager;
-    class Destination;
 
     ~Builder() noexcept;
     Builder(Builder const&) = delete;
@@ -89,12 +85,16 @@ public:
 
     /**Create Logger instance.*/
     std::shared_ptr<Logger> create();
+    /**Cancel building.*/
+    void cancel();
 
     /**Set name of this logger.*/
     Builder& setName(std::string const& name);
 
-    /**Append destination with specified severity level.*/
-    Builder& appendDestination(Destination&& dest, Level severity = Level::Warn);
+    /**Append destination by given a shared pointer.*/
+    Builder& appendDestination(std::shared_ptr<IDestination> dest);
+    /**Append destination.*/
+    Builder& appendDestination(IDestination* dest);
 
 private:
     Builder();
