@@ -53,6 +53,9 @@ public:
      @warn NOT thread-safe. */
     void disable();
 
+    /**Change severity level of all destinations.*/
+    void setSeverity(Level level);
+
     void write(Level level, std::string const& msg) const;
     void write(Level level, std::wstring const& msg) const;
     void trace(std::string const& msg) const;

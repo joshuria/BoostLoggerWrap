@@ -3,8 +3,10 @@
 #include <boost/log/support/date_time.hpp>
 #include <boost/log/common.hpp>
 #include <boost/log/sinks.hpp>
-#include <boost/log/attributes/attribute.hpp>
+#include <boost/core/null_deleter.hpp>
 #include <locale>
+#include <iostream>
+
 #include "level.h"
 #include "logger.h"
 
@@ -28,6 +30,39 @@ void setFormat(SinkT& sink) {
     );
 }
 
+template<typename BackendT, typename SinkT, typename DestinationT>
+struct ImplBase {
+    boost::shared_ptr<SinkT> sink;
+    bool enabled;
+    DestinationT* container;
+
+    ImplBase(boost::shared_ptr<BackendT> backend, DestinationT* container)
+        : sink(boost::make_shared<SinkT>(backend)), enabled(false), container(container)
+    {
+        ::setFormat(*sink);
+        sink->imbue(std::locale(".UTF-8"));
+        bl::core::get()->add_sink(sink);
+    }
+
+    void enable(Logger& logger) {
+        sink->set_filter([this, &logger](bl::attribute_value_set const& attrs) {
+            return attrs["Tag"].extract<std::string>() == logger.getName() &&
+                static_cast<int>(*attrs["Severity"].extract<Level>()) <= static_cast<int>(container->severity);
+        });
+        bl::core::get()->add_sink(sink);
+        enabled = true;
+    }
+
+    void disable() {
+        bl::core::get()->remove_sink(sink);
+        enabled = false;
+    }
+
+    bool isEnabled() const {
+        return enabled;
+    }
+};
+
 } // ! anonymous namespace
 
 
@@ -39,51 +74,40 @@ struct FileDestination::Impl {
     using SinkT = bl::sinks::synchronous_sink<BackendT>;
 
     boost::shared_ptr<BackendT> backend;
-    boost::shared_ptr<SinkT> sink;
-    bool isEnabled;
+    ImplBase<BackendT, SinkT, FileDestination> base;
 
-    Impl(std::string const& path) :
+    Impl(FileDestination* owner, std::string const& path) :
         backend(boost::make_shared<BackendT>(
             kw::file_name = path,
             kw::open_mode = std::ios::app | std::ios::out,
             kw::enable_final_rotation = false)),
-        sink(boost::make_shared<SinkT>(backend)),
-        isEnabled(false)
-    {
-        ::setFormat(*sink);
-        sink->imbue(std::locale(".UTF-8"));
-        bl::core::get()->add_sink(sink);
-        isEnabled = true;
-    }
+        base(backend, owner)
+    { }
 };
 
 
 /*************************************************************/
 // FileDestination
 /*************************************************************/
-FileDestination::FileDestination(std::string const& path): impl(new Impl(path)) {}
+FileDestination::FileDestination(std::string const& path)
+    : impl(new Impl(this, path)) {}
 
 
 FileDestination::~FileDestination() noexcept = default;
 
 
 void FileDestination::enable(Logger& logger) {
-    impl->sink->set_filter(
-        bl::expressions::attr<std::string>("Tag") == logger.getName() &&
-        bl::expressions::attr<Level>("Severity") <= severity);
-    bl::core::get()->add_sink(impl->sink);
-    impl->isEnabled = true;
+    impl->base.enable(logger);
 }
 
 
 void FileDestination::disable() {
-    bl::core::get()->remove_sink(impl->sink);
-    impl->isEnabled = false;
+    impl->base.disable();
 }
 
 
 bool FileDestination::isEnabled() const {
-    return impl->isEnabled;
+    return impl->base.isEnabled();
 }
 
 
@@ -96,28 +120,42 @@ void FileDestination::setFormat(std::string const& format) {
 // ConsoleDestination::Impl
 /*************************************************************/
 struct ConsoleDestination::Impl {
-    ;
+    using BackendT = bl::sinks::text_ostream_backend;
+    using SinkT = bl::sinks::synchronous_sink<BackendT>;
+
+    boost::shared_ptr<BackendT> backend;
+    ImplBase<BackendT, SinkT, ConsoleDestination> base;
+
+    Impl(ConsoleDestination* owner) :
+        backend(boost::make_shared<BackendT>()),
+        base(backend, owner)
+    {
+        backend->add_stream(boost::shared_ptr<std::ostream>(&std::clog, boost::null_deleter()));
+    }
 };
 
 
 /*************************************************************/
 // ConsoleDestination
 /*************************************************************/
+ConsoleDestination::ConsoleDestination(): impl(new Impl(this)) { }
+
+
 ConsoleDestination::~ConsoleDestination() noexcept = default;
 
 
 void ConsoleDestination::enable(Logger& logger) {
-    ;
+    impl->base.enable(logger);
 }
 
 
 void ConsoleDestination::disable() {
-    ;
+    impl->base.disable();
 }
 
 
 bool ConsoleDestination::isEnabled() const {
-    return false;
+    return impl->base.isEnabled();
 }
 
 
@@ -130,28 +168,42 @@ void ConsoleDestination::setFormat(std::string const& format) {
 // StreamDestination::Impl
 /*************************************************************/
 struct StreamDestination::Impl {
-    ;
+    using BackendT = bl::sinks::text_ostream_backend;
+    using SinkT = bl::sinks::synchronous_sink<BackendT>;
+
+    boost::shared_ptr<BackendT> backend;
+    ImplBase<BackendT, SinkT, StreamDestination> base;
+
+    Impl(StreamDestination* owner, std::ostream* stream) :
+        backend(boost::make_shared<BackendT>()),
+        base(backend, owner)
+    {
+        backend->add_stream(boost::shared_ptr<std::ostream>(stream));
+    }
 };
 
 
 /*************************************************************/
 // StreamDestination
 /*************************************************************/
+StreamDestination::StreamDestination(std::ostream* stream): impl(new Impl(this, stream)) { }
+
+
 StreamDestination::~StreamDestination() noexcept = default;
 
 
 void StreamDestination::enable(Logger& logger) {
-    ;
+    impl->base.enable(logger);
 }
 
 
 void StreamDestination::disable() {
-    ;
+    impl->base.disable();
 }
 
 
 bool StreamDestination::isEnabled() const {
-    return false;
+    return impl->base.isEnabled();
 }
 
 
@@ -164,7 +216,16 @@ void StreamDestination::setFormat(std::string const& format) {
 // DebugOutputDestination::Impl
 /*************************************************************/
 struct DebugOutputDestination::Impl {
-    ;
+    using BackendT = bl::sinks::debug_output_backend;
+    using SinkT = bl::sinks::synchronous_sink<BackendT>;
+
+    boost::shared_ptr<BackendT> backend;
+    ImplBase<BackendT, SinkT, DebugOutputDestination> base;
+
+    Impl(DebugOutputDestination* owner) :
+        backend(boost::make_shared<BackendT>()),
+        base(backend, owner)
+    { }
 };
 
 
@@ -173,21 +234,24 @@ struct DebugOutputDestination::Impl {
 /*************************************************************/
 // DebugOutputDestination
 /*************************************************************/
+DebugOutputDestination::DebugOutputDestination(): impl(new Impl(this)) {}
+
+
 DebugOutputDestination::~DebugOutputDestination() noexcept = default;
 
 
 void DebugOutputDestination::enable(Logger& logger) {
-    ;
+    impl->base.enable(logger);
 }
 
 
 void DebugOutputDestination::disable() {
-    ;
+    impl->base.disable();
 }
 
 
 bool DebugOutputDestination::isEnabled() const {
-    return false;
+    return impl->base.isEnabled();
 }
 
 

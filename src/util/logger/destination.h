@@ -4,6 +4,7 @@
 
 #include <string>
 #include <memory>
+#include <ostream>
 #include "level.h"
 
 
@@ -21,6 +22,7 @@ struct IDestination {
      Log messages will not write to this destination. */
     virtual void disable() = 0;
     /**Get if this destination is enabled.*/
+    [[nodiscard]]
     virtual bool isEnabled() const = 0;
 
     /**Log severity.
@@ -40,7 +42,7 @@ struct FileDestination: IDestination {
 
     /**Create file destination with specified path to log file.
      @note if folder in given path does not exist, the folder will be created. */
-    explicit FileDestination(std::string const& path);
+    FileDestination(std::string const& path);
 
     virtual ~FileDestination() noexcept;
 
@@ -50,6 +52,7 @@ struct FileDestination: IDestination {
      Log messages will not write to this destination. */
     virtual void disable() override;
     /**Get if this destination is enabled.*/
+    [[nodiscard]]
     virtual bool isEnabled() const override;
 
 protected:
@@ -63,6 +66,10 @@ private:
 
 
 struct ConsoleDestination: IDestination {
+    friend class Logger;
+
+    explicit ConsoleDestination();
+
     virtual ~ConsoleDestination() noexcept;
 
     /**Apply log destination.*/
@@ -71,6 +78,7 @@ struct ConsoleDestination: IDestination {
      Log messages will not write to this destination. */
     virtual void disable() override;
     /**Get if this destination is enabled.*/
+    [[nodiscard]]
     virtual bool isEnabled() const override;
 
 protected:
@@ -84,6 +92,11 @@ private:
 
 
 struct StreamDestination: IDestination {
+    /**Create output stream destination.
+     @note this class will maintain given stream pointer internally, so do not delete it or give a
+        local variable's pointer. */
+    StreamDestination(std::ostream* stream);
+
     virtual ~StreamDestination() noexcept;
 
     /**Apply log destination.*/
@@ -92,6 +105,7 @@ struct StreamDestination: IDestination {
      Log messages will not write to this destination. */
     virtual void disable() override;
     /**Get if this destination is enabled.*/
+    [[nodiscard]]
     virtual bool isEnabled() const override;
 
 protected:
@@ -107,6 +121,8 @@ private:
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 
 struct DebugOutputDestination: IDestination {
+    DebugOutputDestination();
+
     virtual ~DebugOutputDestination() noexcept;
 
     /**Apply log destination.*/
@@ -115,6 +131,7 @@ struct DebugOutputDestination: IDestination {
      Log messages will not write to this destination. */
     virtual void disable() override;
     /**Get if this destination is enabled.*/
+    [[nodiscard]]
     virtual bool isEnabled() const override;
 
 protected:

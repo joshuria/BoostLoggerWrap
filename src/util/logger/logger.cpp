@@ -5,16 +5,10 @@
 #include <boost/log/common.hpp>
 #include <boost/log/utility/setup/file.hpp>
 #include <boost/log/utility/setup/console.hpp>
-#include <boost/log/utility/setup/common_attributes.hpp>
 #include <boost/log/sources/logger.hpp>
-#include <boost/log/attributes/attribute.hpp>
-#include <boost/log/attributes/attribute_cast.hpp>
 #include <locale>
 #include <codecvt>
-#include <fstream>
-#include <ostream>
 #include <exception>
-#include <ctime>
 #include <shared_mutex>
 #include "../text.h"
 #include "destination.h"
@@ -51,57 +45,6 @@ struct Logger::LoggerImpl {
         Logger* container, std::string name, std::vector<std::shared_ptr<IDestination>>&& destinations
     ): container(container), name(name), destinationList(destinations), instance() {
         instance.add_attribute("Tag", bl::attributes::constant<std::string>(name));
-        //fileBackend = boost::make_shared<boost::log::sinks::text_ostream_backend>();
-
-        //fileSink = boost::make_shared<bl::sinks::synchronous_sink<bl::sinks::text_ostream_backend>>(fileBackend);
-        //fileSink->set_formatter(bl::expressions::stream
-        //    << bl::expressions::format_date_time<boost::posix_time::ptime>("TimeStamp", "[%Y-%m-%d %T.%f]")
-        //    << " [" << severity.or_default(Level::Info) << "] "
-        //    //<< " [" << std::setw(1) << boost::log::trivial::severity << std::setw(0) << "] "
-        //    << bl::expressions::message
-        //);
-        //fileSink->imbue(std::locale(".UTF-8"));
-        //bl::core::get()->add_sink(fileSink);
-
-        //fileSink->set_filter([this](bl::attribute_value_set const& attrs) {
-        //    //return attrs["Tag"].extract<std::string>() == settings.name;
-        //    Level lv = *attrs["Severity"].extract<Level>();
-        //    return attrs["Tag"].extract<std::string>() == settings.name &&
-        //        static_cast<int>(lv) <= static_cast<int>(settings.severity);
-        //});
-
-        ////fileSink->set_filter(
-        ////    bl::expressions::attr<std::string>("Tag") == name &&
-        ////    bl::expressions::attr<Level>("Severity") <= settings.severity);
-
-        //auto fileStream = boost::make_shared<std::ofstream>(
-        //    settings.logPath, StreamType::app | StreamType::binary);
-        //if (!settings.isFileBuffering)
-        //    fileStream->rdbuf()->pubsetbuf(nullptr, 0);
-        //fileBackend->add_stream(fileStream);
-
-
-        //consoleBackend = boost::make_shared<boost::log::sinks::text_ostream_backend>();
-
-        //consoleSink = boost::make_shared<bl::sinks::synchronous_sink<bl::sinks::text_ostream_backend>>(consoleBackend);
-        //consoleSink->set_formatter(bl::expressions::stream
-        //    << bl::expressions::format_date_time<boost::posix_time::ptime>("TimeStamp", "[%Y-%m-%d %T.%f]")
-        //    << " [" << severity.or_default(Level::Info) << "] "
-        //    << bl::expressions::message
-        //);
-        //consoleSink->imbue(std::locale(".UTF-8"));
-        //bl::core::get()->add_sink(consoleSink);
-
-        //consoleSink->set_filter(
-        //    bl::expressions::attr<std::string>("Tag") == name &&
-        //    bl::expressions::attr<Level>("Severity") <= settings.severity);
-
-        //auto consoleStream = boost::shared_ptr<StreamType>{ &std::clog, boost::null_deleter() };
-        //if (!settings.isConsoleBuffering)
-        //    consoleStream->rdbuf()->pubsetbuf(nullptr, 0);
-        //consoleBackend->add_stream(consoleStream);
-
-        bl::add_common_attributes();
     }
 };
 
@@ -143,6 +86,12 @@ void Logger::enable(bool enable) {
 
 void Logger::disable() {
     for (auto dest : impl->destinationList) dest->disable();
+}
+
+
+void Logger::setSeverity(Level level) {
+    for (auto dest : impl->destinationList)
+        dest->severity = level;
 }
 
 
