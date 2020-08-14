@@ -4,19 +4,18 @@
 
 #include <string>
 #include <memory>
-#include "level.h"
 
 
 namespace josh::util::logger {
 
 class Logger;
-struct IDestination;
+struct DestinationBase;
 
 /**Manager for Logger instances.
  @example
     std::shared_ptr<Logger> logger = LoggerManager::getInstance().newBuilder()
         .setName("TestingLog")
-        .appendDestination(Destination::File, "logFile.log", Level::Error)
+        .appendDestination()
         .appendDestination(Destination::Stream, std::cerr, Level::Warn)
         .appendDestination(Destination::DebugOutput, Level::Info)
         .create();
@@ -46,7 +45,7 @@ public:
     /**Create new builder instance.
      @warning client muse call Builder::create() or Builder::cancel() in order to prevent resource
         leak. */
-    static Builder& newBuilder();
+    static Builder newBuilder();
 
     /**Get Logger instance.
      @return a shared pointer to Logger instance. nullptr if not found. */
@@ -78,23 +77,21 @@ public:
     friend class LoggerManager;
 
     ~Builder() noexcept;
+    Builder(Builder&& o) noexcept;
     Builder(Builder const&) = delete;
-    Builder(Builder&&) = delete;
     void operator= (Builder const&) = delete;
     void operator= (Builder&&) = delete;
 
     /**Create Logger instance.*/
     std::shared_ptr<Logger> create();
-    /**Cancel building.*/
-    void cancel();
 
     /**Set name of this logger.*/
-    Builder& setName(std::string const& name);
+    Builder&& setName(std::string const& name);
 
     /**Append destination by given a shared pointer.*/
-    Builder& appendDestination(std::shared_ptr<IDestination> dest);
+    Builder&& appendDestination(std::shared_ptr<DestinationBase> dest);
     /**Append destination.*/
-    Builder& appendDestination(IDestination* dest);
+    Builder&& appendDestination(DestinationBase* dest);
 
 private:
     Builder();

@@ -15,12 +15,12 @@ using namespace josh::util::logger;
 /*************************************************************/
 struct LoggerManager::Builder::Impl {
     std::string name;
-    std::vector<std::shared_ptr<IDestination>> destinationList;
+    std::vector<std::shared_ptr<DestinationBase>> destinationList;
 };
 
 
 /*************************************************************/
-// LoggerManager
+// LoggerManager::Builder
 /*************************************************************/
 LoggerManager::Builder::~Builder() noexcept = default;
 
@@ -28,33 +28,30 @@ LoggerManager::Builder::~Builder() noexcept = default;
 LoggerManager::Builder::Builder(): impl(new Impl()) { }
 
 
+LoggerManager::Builder::Builder(Builder&& o) noexcept: impl(std::move(o.impl)) {}
+
+
 std::shared_ptr<Logger> LoggerManager::Builder::create() {
     auto instance = LoggerManager::getInstance().addLogger(*this);
-    delete this;
     return instance;
 }
 
 
-void LoggerManager::Builder::cancel() {
-    delete this;
-}
-
-
-LoggerManager::Builder& LoggerManager::Builder::setName(std::string const& name) {
+LoggerManager::Builder&& LoggerManager::Builder::setName(std::string const& name) {
     impl->name = name;
-    return *this;
+    return std::move(*this);
 }
 
 
-LoggerManager::Builder& LoggerManager::Builder::appendDestination(std::shared_ptr<IDestination> dest) {
+LoggerManager::Builder&& LoggerManager::Builder::appendDestination(std::shared_ptr<DestinationBase> dest) {
     impl->destinationList.emplace_back(dest);
-    return *this;
+    return std::move(*this);
 }
 
 
-LoggerManager::Builder& LoggerManager::Builder::appendDestination(IDestination* dest) {
-    impl->destinationList.emplace_back(std::shared_ptr<IDestination>(dest));
-    return *this;
+LoggerManager::Builder&& LoggerManager::Builder::appendDestination(DestinationBase* dest) {
+    impl->destinationList.emplace_back(std::shared_ptr<DestinationBase>(dest));
+    return std::move(*this);
 }
 
 
@@ -86,8 +83,8 @@ LoggerManager& LoggerManager::getInstance() noexcept {
 }
 
 
-LoggerManager::Builder& LoggerManager::newBuilder() {
-    return *(new Builder());
+LoggerManager::Builder LoggerManager::newBuilder() {
+    return Builder();
 }
 
 

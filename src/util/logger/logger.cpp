@@ -32,7 +32,7 @@ using namespace josh::util::logger;
 struct Logger::LoggerImpl {
     Logger* container;
     std::string name;
-    std::vector<std::shared_ptr<IDestination>> destinationList;
+    std::vector<std::shared_ptr<DestinationBase>> destinationList;
 
 #ifdef LOG_USE_MT
     blsrc::severity_logger_mt<Logger::Level> instance;
@@ -42,7 +42,7 @@ struct Logger::LoggerImpl {
 
 
     LoggerImpl(
-        Logger* container, std::string name, std::vector<std::shared_ptr<IDestination>>&& destinations
+        Logger* container, std::string name, std::vector<std::shared_ptr<DestinationBase>>&& destinations
     ): container(container), name(name), destinationList(destinations), instance() {
         instance.add_attribute("Tag", bl::attributes::constant<std::string>(name));
     }
@@ -52,7 +52,7 @@ struct Logger::LoggerImpl {
 /*************************************************************/
 // Logger
 /*************************************************************/
-Logger::Logger(std::string name, std::vector<std::shared_ptr<IDestination>>&& destinations) : impl() {
+Logger::Logger(std::string name, std::vector<std::shared_ptr<DestinationBase>>&& destinations) : impl() {
     try {
         impl.reset(new LoggerImpl(this, std::move(name), std::move(destinations)));
     }

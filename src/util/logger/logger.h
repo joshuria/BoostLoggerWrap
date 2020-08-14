@@ -11,26 +11,18 @@
 
 namespace josh::util::logger {
 
-struct IDestination;
+struct DestinationBase;
 
 /**Boost::Logger based logging.
  @example
-    Logger.initialize(
-        true, // is log to file
-        true, // is log write to console (std::clog or stdout)
-        "log/%n%.log", // logger file path template, the %n% will be replaced by logger's name
-        false, // file use buffered IO
-        false  // console use buffered IO
-    );
-    auto& logger = Logger.get("loggerName");  // Get or create new logger
-    logger.setSeverity(Logger::Level::Warn);  // Change severity to warn
-    logger.info("this is info");              // This will NOT appear in log
-    logger.warn("this is warning");
-    logger.error("this is error");
+    auto logger = LoggerManager.getInstance().get("pre-created-logger");
+    logger->setSeverity(Logger::Level::Warn);  // Change severity to warn
+    logger->info("this is info");              // This will NOT appear in log
+    logger->warn("this is warning");
+    logger->error("this is error");
 
- Available variable in logger name template:
-   - %n%: logger's name.
-   - %t%: current local date time: yyyyMMdd-hhmmss
+    logger->setSeverity(Level::Fatal);
+    logger->warn("this is warning");            // This will NOT appear in log
  */
 class Logger {
 public:
@@ -124,9 +116,7 @@ public:
 private:
     friend class LoggerManager;
 
-    Logger(std::string name, std::vector<std::shared_ptr<IDestination>>&& destinations);
-        //std::string path, bool toFile, bool toConsole,
-        //bool fileBuffered, bool consoleBuffered, Level severity);
+    Logger(std::string name, std::vector<std::shared_ptr<DestinationBase>>&& destinations);
 
 //private:
     struct LoggerImpl;
